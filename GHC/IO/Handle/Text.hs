@@ -580,14 +580,17 @@ writeBlocks :: Handle -> Bool -> Bool -> Newline -> Buffer CharBufElem -> String
 writeBlocks hdl line_buffered add_nl nl
             buf@Buffer{ bufRaw=raw, bufSize=len } s =
   let
+   nmax = case nl of
+     CRLF -> len - 1 -- extra space to account for \r\n in CRLF mode
+     LF   -> len
+
    shoveString :: Int -> [Char] -> [Char] -> IO ()
    shoveString !n [] [] = do
         commitBuffer hdl raw len n False{-no flush-} True{-release-}
    shoveString !n [] rest = do
         shoveString n rest []
    shoveString !n (c:cs) rest
-     -- n+1 so we have enough room to write '\r\n' if necessary
-     | n + 1 >= len = do
+     | n >= nmax = do
         commitBuffer hdl raw len n False{-flush-} False
         shoveString 0 (c:cs) rest
      | c == '\n'  =  do
